@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+    /* 1:1 Web Viewer/Container के लिए CSS */
+    html, body {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: transparent; /* पृष्ठभूमि पारदर्शी */
+        font-family: Arial, sans-serif;
+        box-sizing: border-box; /* पैडिंग/बॉर्डर को चौड़ाई/ऊँचाई में शामिल करें */
+        overflow: hidden;
+    }
+    .big-square {
+        background: transparent; /* पारदर्शी पृष्ठभूमि */
+        border-radius: 0; /* कॉर्नर पर बॉर्डर नहीं */
+        width: 100%; /* कंटेनर के 100% चौड़ाई का उपयोग करें */
+        height: 100%; /* कंटेनर के 100% ऊँचाई का उपयोग करें */
+        aspect-ratio: 1 / 1; /* यह सुनिश्चित करता है कि यह 1:1 बना रहे (यदि पैरेंट 1:1 है) */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        overflow: hidden;
+    }
+    .board {
+        background-image: bg.jpg;
+        position: absolute;
+        width: 90%; /* बड़े कंटेनर के 90% पर बोर्ड */
+        max-width: 90vh; /* अधिकतम 90% व्यूपोर्ट ऊँचाई */
+        max-height: 90vh; /* अधिकतम 90% व्यूपोर्ट चौड़ाई */
+        aspect-ratio: 1 / 1;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0;
+        visibility: hidden;
+        background: transparent;
+        border: 2px solid black; /* बोर्ड के चारों ओर काली बॉर्डर */
+        box-sizing: border-box;
+    }
+    .cell {
+        background: transparent; /* पारदर्शी पृष्ठभूमि */
+        border: 1px solid black; /* काली ग्रिड लाइनें */
+        border-radius: 0;
+        aspect-ratio: 1 / 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        user-select: none;
+        overflow: hidden;
+        box-sizing: border-box;
+    }
+    .cell img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover; 
+        display: block;
+        pointer-events: none;
+    }
+
+    /* Start बटन को 1:1 कंटेनर के साइज का करने के लिए */
+    .menu { 
+        text-align: center; 
+        background: transparent; 
+        width: 100%; 
+        height: 100%; 
+        display: flex; 
+        justify-content: center; 
+        align-items: center;
+    }
+    .menu .mode {
+        display: block;
+        margin: 0;
+        font-size: 2em;
+        border-radius: 0; /* बॉर्डर रेडियस हटा दिया */
+        cursor: pointer;
+        border: none;
+        transition: 0.3s ease;
+        width: 100%; /* मेनू कंटेनर की 100% चौड़ाई */
+        height: 100%; /* मेनू कंटेनर की 100% ऊँचाई */
+        background: transparent;
+    }
+    .menu .mode-bot img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    /* Winner Screen */
+    .winner-screen { 
+        text-align: center; 
+        display: none; 
+        background: transparent;
+        color: black;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+    .winner-screen h2 { 
+        font-size: 5vw; /* साइज एडजस्ट किया */
+        margin-bottom: 5vw; 
+        color: black;
+    }
+    .winner-screen button#restartBtn, #backHome {
+        /* Restart और BackHome बटन हटा दिए गए/छिपा दिए गए */
+        display: none !important; 
+    }
+    .win-line {
+        position: absolute;
+        height: 4px;
+        background: red;
+        transform-origin: 0 50%;
+        z-index: 10;
+    }
+    
+    /* साइड और सेंटर डिव को 1:1 के लिए हटा दिया */
+    .side, .center { display: none !important; }
+    
+</style>
+</head>
+<body>
+
+<div class="big-square">
+    <div class="board" id="board">
+        <div class="cell" data-index="0"></div>
+        <div class="cell" data-index="1"></div>
+        <div class="cell" data-index="2"></div>
+        <div class="cell" data-index="3"></div>
+        <div class="cell" data-index="4"></div>
+        <div class="cell" data-index="5"></div>
+        <div class="cell" data-index="6"></div>
+        <div class="cell" data-index="7"></div>
+        <div class="cell" data-index="8"></div>
+    </div>
+
+    <div class="menu" id="menu">
+        <button class="mode mode-bot" onclick="setMode('bot')">
+            <img src="3.png" alt="Start Game" /> 
+        </button>
+    </div>
+
+    <div class="winner-screen" id="winnerScreen">
+        <h2 id="winnerText"></h2>
+        </div>
+</div>
+
+<script>
+let gameMode = null;
+let turn = "X";
+let gameOver = false;
+let chancesLeft = 3; // 3 चांस का लॉजिक जोड़ा
+const MAX_CHANCES = 3;
+
+let xOrder = [];
+let oOrder = [];
+
+let tokenImages = {
+  X: localStorage.getItem("tokenX") || null,
+  O: localStorage.getItem("tokenO") || null
+};
+
+const defaultImages = {
+  X: "1.png",
+  O: "2.png"
+};
+
+const winPatterns = [
+  [0,1,2],[3,4,5],[6,7,8],
+  [0,3,6],[1,4,7],[2,5,8],
+  [0,4,8],[2,4,6]
+];
+
+// Kodular को स्ट्रिंग भेजने के लिए फंक्शन
+function sendKodularString(message) {
+    if (window.Kodular && typeof window.Kodular.setWebViewString === "function") {
+        window.Kodular.setWebViewString(message);
+    }
+}
+
+function setMode(mode) {
+  gameMode = mode;
+  document.getElementById("menu").style.display = "none";
+  document.getElementById("board").style.visibility = "visible";
+  document.getElementById("winnerScreen").style.display = "none";
+  
+  // गेम शुरू होने पर चांस की जानकारी भेजें
+  sendKodularString("chance:" + chancesLeft); 
+}
+
+function showWinner(symbol) {
+  gameOver = true;
+  document.getElementById("board").style.visibility = "hidden";
+  document.getElementById("winnerText").textContent = `Winner: ${symbol}`;
+  document.getElementById("winnerScreen").style.display = "block";
+  
+  // जीतने पर Kodular को "win" स्ट्रिंग भेजें
+  sendKodularString("win");
+}
+
+function showDraw() {
+    gameOver = true;
+    document.getElementById("board").style.visibility = "hidden";
+    document.getElementById("winnerText").textContent = "Draw!";
+    document.getElementById("winnerScreen").style.display = "block";
+    
+    // ड्रा होने पर, हारने के चांस का लॉजिक (जैसा कि हारने पर है) लागू करें
+    handleLoss(); 
+}
+
+// हारने/ड्रा होने पर बोर्ड को ऑटो-रीसेट करने और चांस को मैनेज करने के लिए
+function handleLoss() {
+    chancesLeft--;
+    
+    // चांस की जानकारी Kodular को भेजें
+    sendKodularString("chance:" + chancesLeft);
+    
+    if (chancesLeft <= 0) {
+        // लगातार 3 हार पर "loss" स्ट्रिंग भेजें
+        sendKodularString("loss"); 
+        
+        // गेम खत्म होने के बाद 5 सेकंड बाद मेनू पर वापस आ जाएँ
+        setTimeout(() => {
+            resetAllGame(); 
+        }, 5000); 
+    } else {
+        // हारने पर, 1 सेकंड बाद बोर्ड रीसेट करें और नया गेम शुरू करें
+        setTimeout(() => {
+            clearBoard();
+            document.getElementById("winnerScreen").style.display = "none";
+            document.getElementById("board").style.visibility = "visible";
+            // Kodular को अपडेटेड चांस भेजें (पहले ही भेज दिया गया है)
+        }, 1000); 
+    }
+}
+
+// पूरा गेम रीसेट करना (3 बार हारने के बाद)
+function resetAllGame() {
+    chancesLeft = MAX_CHANCES;
+    clearBoard();
+    document.getElementById("winnerScreen").style.display = "none";
+    document.getElementById("menu").style.display = "flex"; // Flex डिस्प्ले स्टार्ट बटन के लिए
+    sendKodularString("chance:" + chancesLeft); // चांस रीसेट की जानकारी भेजें
+}
+
+function clearBoard() {
+  document.querySelectorAll(".cell").forEach(c => {
+    c.innerHTML = "";
+    c.removeAttribute("data-symbol");
+  });
+  xOrder = [];
+  oOrder = [];
+  turn = "X";
+  gameOver = false;
+  document.querySelectorAll(".win-line").forEach(line => line.remove());
+}
+
+function drawWinningLine(pattern) {
+  const board = document.getElementById("board");
+  const cells = document.querySelectorAll(".cell");
+  // ... (वही लॉजिक)
+  const rectA = cells[pattern[0]].getBoundingClientRect();
+  const rectC = cells[pattern[2]].getBoundingClientRect();
+  const boardRect = board.getBoundingClientRect();
+  const x1 = rectA.left + rectA.width / 2 - boardRect.left;
+  const y1 = rectA.top + rectA.height / 2 - boardRect.top;
+  const x2 = rectC.left + rectC.width / 2 - boardRect.left;
+  const y2 = rectC.top + rectC.height / 2 - boardRect.top;
+  const line = document.createElement("div");
+  line.classList.add("win-line");
+  line.style.width = Math.hypot(x2 - x1, y2 - y1) + "px";
+  line.style.transform = `translate(${x1}px,${y1}px) rotate(${Math.atan2(y2 - y1, x2 - x1)}rad)`;
+  board.appendChild(line);
+}
+
+function checkWinnerFromBoardArr(arr) {
+  for (const p of winPatterns) {
+    const [a, b, c] = p;
+    if (arr[a] && arr[a] === arr[b] && arr[a] === arr[c]) return arr[a];
+  }
+  return null;
+}
+
+function getBoardArr() {
+  return [...document.querySelectorAll(".cell")].map(c => c.dataset.symbol || null);
+}
+
+function checkWinnerUI() {
+  const boardArr = getBoardArr();
+  const winner = checkWinnerFromBoardArr(boardArr);
+  
+  if (winner) {
+    const pattern = winPatterns.find(p => p.every(i => boardArr[i] === winner));
+    if (pattern) drawWinningLine(pattern);
+    setTimeout(() => showWinner(winner), 600);
+    return true;
+  }
+  
+  // ड्रा चेक
+  if (boardArr.every(c => c !== null)) {
+      setTimeout(() => showDraw(), 600); 
+      return true;
+  }
+  
+  return false;
+}
+
+function placeSymbol(cell, symbol) {
+  // ... (वही लॉजिक)
+  const idx = +cell.getAttribute("data-index");
+  if (cell.dataset.symbol) return false;
+
+  const img = document.createElement("img");
+  img.src = tokenImages[symbol] || defaultImages[symbol];
+  cell.innerHTML = "";
+  cell.appendChild(img);
+  cell.dataset.symbol = symbol;
+
+  if (symbol === "X") {
+    xOrder.push(idx);
+    if (xOrder.length > 3) {
+      const rem = xOrder.shift();
+      const rc = document.querySelector(`.cell[data-index="${rem}"]`);
+      if (rc) {
+        rc.innerHTML = "";
+        rc.removeAttribute("data-symbol");
+      }
+    }
+  } else {
+    oOrder.push(idx);
+    if (oOrder.length > 3) {
+      const rem = oOrder.shift();
+      const rc = document.querySelector(`.cell[data-index="${rem}"]`);
+      if (rc) {
+        rc.innerHTML = "";
+        rc.removeAttribute("data-symbol");
+      }
+    }
+  }
+  return true;
+}
+
+document.querySelectorAll(".cell").forEach(cell => {
+  cell.addEventListener("click", () => {
+    if (gameOver || chancesLeft <= 0) return; // गेम ओवर होने पर या चांस खत्म होने पर क्लिक न करें
+    if (!placeSymbol(cell, turn)) return;
+
+    if (checkWinnerUI()) return; // अगर विनर है, तो रिटर्न
+
+    if (gameMode === "bot" && turn === "X") {
+      turn = "O";
+      setTimeout(botMove, 250);
+    } else {
+      turn = (turn === "X") ? "O" : "X";
+    }
+  });
+});
+
+// ... (Minimax और BotMove फंक्शन वही रहेगा)
+const MAX_DEPTH = 10; 
+
+function botMove() {
+  if (gameOver || chancesLeft <= 0) return;
+
+  const state = readState();
+  let bestScore = -Infinity;
+  let bestIdx = null;
+
+  const legal = legalPlacements(state, "O");
+  for (const idx of legal) {
+    const next = applyPlacement(state, idx, "O");
+    const score = minimax(next, 1, -Infinity, Infinity, false);
+    if (score > bestScore) {
+      bestScore = score;
+      bestIdx = idx;
+    }
+  }
+
+  if (bestIdx !== null) {
+    const cell = document.querySelector(`.cell[data-index="${bestIdx}"]`);
+    placeSymbol(cell, "O");
+    
+    // बॉट मूव के बाद फिर से विनर चेक करें
+    if (checkWinnerUI()) return; 
+    
+    turn = "X";
+  }
+}
+
+function readState() {
+  const board = getBoardArr();
+  return {
+    board,
+    xOrder: [...xOrder],
+    oOrder: [...oOrder]
+  };
+}
+
+function legalPlacements(state, who) {
+  const res = [];
+  for (let i = 0; i < 9; i++) if (state.board[i] == null) res.push(i);
+  return res;
+}
+
+function applyPlacement(state, idx, who) {
+  const board = state.board.slice();
+  const xQ = state.xOrder.slice();
+  const oQ = state.oOrder.slice();
+
+  if (board[idx] != null) return state;
+  board[idx] = who;
+  if (who === "X") {
+    xQ.push(idx);
+    if (xQ.length > 3) {
+      const rem = xQ.shift();
+      board[rem] = null;
+    }
+  } else {
+    oQ.push(idx);
+    if (oQ.length > 3) {
+      const rem = oQ.shift();
+      board[rem] = null;
+    }
+  }
+  return { board, xOrder: xQ, oOrder: oQ };
+}
+
+function terminalScore(board, depth) {
+  const w = checkWinnerFromBoardArr(board);
+  if (w === "O") return 100 - depth;
+  if (w === "X") return depth - 100;
+  return null;
+}
+
+function heuristic(board) {
+  let score = 0;
+  for (const p of winPatterns) {
+    const [a, b, c] = p;
+    const line = [board[a], board[b], board[c]];
+    const o = line.filter(v => v === "O").length;
+    const x = line.filter(v => v === "X").length;
+    const e = 3 - o - x;
+    if (o > 0 && x > 0) continue;
+    if (o === 2 && e === 1) score += 6;
+    else if (o === 1 && e === 2) score += 2;
+    else if (x === 2 && e === 1) score -= 6;
+    else if (x === 1 && e === 2) score -= 2;
+  }
+  if (board[4] === "O") score += 1;
+  else if (board[4] === "X") score -= 1;
+  [0, 2, 6, 8].forEach(i => {
+    if (board[i] === "O") score += 0.5;
+    else if (board[i] === "X") score -= 0.5;
+  });
+  return score;
+}
+
+function minimax(state, depth, alpha, beta, maximizing) {
+  const term = terminalScore(state.board, depth);
+  if (term !== null) return term;
+  if (depth >= MAX_DEPTH) return heuristic(state.board);
+
+  if (maximizing) {
+    let best = -Infinity;
+    const moves = legalPlacements(state, "O");
+    for (const idx of moves) {
+      const next = applyPlacement(state, idx, "O");
+      const val = minimax(next, depth + 1, alpha, beta, false);
+      best = Math.max(best, val);
+      alpha = Math.max(alpha, val);
+      if (beta <= alpha) break;
+    }
+    return best;
+  } else {
+    let best = Infinity;
+    const moves = legalPlacements(state, "X");
+    for (const idx of moves) {
+      const next = applyPlacement(state, idx, "X");
+      const val = minimax(next, depth + 1, alpha, beta, true);
+      best = Math.min(best, val);
+      beta = Math.min(beta, val);
+      if (beta <= alpha) break;
+    }
+    return best;
+  }
+}
+
+// पेज लोड पर चांस की जानकारी भेजें
+document.addEventListener('DOMContentLoaded', () => {
+    sendKodularString("chance:" + chancesLeft);
+});
+</script>
+
+</body>
+</html>
