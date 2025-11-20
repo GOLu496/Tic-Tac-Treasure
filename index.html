@@ -19,6 +19,7 @@
         overflow: hidden;
     }
     .big-square {
+        background-image: url('bg.jpg');
         background: transparent; /* पारदर्शी पृष्ठभूमि */
         border-radius: 0; /* कॉर्नर पर बॉर्डर नहीं */
         width: 100%; /* कंटेनर के 100% चौड़ाई का उपयोग करें */
@@ -31,11 +32,10 @@
         overflow: hidden;
     }
     .board {
-        background-image: bg.jpg;
         position: absolute;
-        width: 90%; /* बड़े कंटेनर के 90% पर बोर्ड */
-        max-width: 90vh; /* अधिकतम 90% व्यूपोर्ट ऊँचाई */
-        max-height: 90vh; /* अधिकतम 90% व्यूपोर्ट चौड़ाई */
+        width: 100%; /* बड़े कंटेनर के 90% पर बोर्ड */
+        max-width: 100vh; /* अधिकतम 90% व्यूपोर्ट ऊँचाई */
+        max-height: 100vh; /* अधिकतम 90% व्यूपोर्ट चौड़ाई */
         aspect-ratio: 1 / 1;
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -47,7 +47,7 @@
     }
     .cell {
         background: transparent; /* पारदर्शी पृष्ठभूमि */
-        border: 1px solid black; /* काली ग्रिड लाइनें */
+        border: 2px solid black; /* काली ग्रिड लाइनें */
         border-radius: 0;
         aspect-ratio: 1 / 1;
         display: flex;
